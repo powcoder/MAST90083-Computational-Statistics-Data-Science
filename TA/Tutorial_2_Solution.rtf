@@ -1,0 +1,286 @@
+{\rtf1\ansi\ansicpg936\cocoartf2580
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica-Bold;\f1\fswiss\fcharset0 Helvetica;\f2\froman\fcharset0 TimesNewRomanPSMT;
+\f3\froman\fcharset0 TimesNewRomanPS-BoldMT;}
+{\colortbl;\red255\green255\blue255;\red255\green192\blue0;}
+{\*\expandedcolortbl;;\csgenericrgb\c100000\c75294\c0;}
+\margl993\margr758\margb1135\vieww28800\viewh18000\viewkind1\viewscale120
+\deftab720
+\pard\pardeftab720\ri0\sl259\slmult1\sa160\partightenfactor0
+
+\f0\b\fs28 \cf2 ####################################function that needs to be saved in getstim file\
+\pard\pardeftab720\ri0\partightenfactor0
+
+\f1\b0\fs22 \cf0 getstim <- function(ones_onsets,ones_dur,timeseries_len) \
+\{\
+	stim<-numeric(timeseries_len)\
+	for(i in 1:length(ones_onsets))\
+	\{\
+		stim[(ones_onsets[i]+1):(ones_dur+ones_onsets[i])] <- c(replicate(ones_dur,1))\
+   	\}\
+	return(stim)\
+\}
+\f2 \
+\
+\
+\pard\pardeftab720\ri0\sl259\slmult1\sa160\partightenfactor0
+
+\f0\b\fs28 \cf2 ####################################This needs to be saved in the main file along with rest of the code given below for each question
+\f3 \
+\pard\pardeftab720\ri0\partightenfactor0
+
+\f1\b0\fs22 \cf0 ####################################This needs to be saved in the main file along with rest of the code given below for each question\
+####################################This needs to be saved in the main file along with rest of the code given below for each question\
+rm(list=ls())\
+source("D:/Codefiles/2021/R/getstim.R")\
+\
+####################################libraries\
+#install.packages("ggplot2")\
+#install.packages("R.matlab")\
+#install.packages("reshape2")   \
+#install.packages("pracma")     \
+#install.packages("plot.matrix")\
+#install.packages("MASS")\
+\
+library("ggplot2")\
+library("R.matlab")\
+library("reshape2") \
+library("pracma") \
+library("plot.matrix")\
+library("MASS")\
+\
+####################################objects\
+nsrcs <-3 #number of sources\
+N <- 240 #number of time points\
+x1<- 21 #slice size in horizontal direction\
+x2<- 21 #slice size in vertical direction\
+var_arr<-c(0.25,0.05) # array of temporal and spatial noise\
+T <-3; # threshold for least square\
+\
+\
+#Question 1: \
+####################################Source TCs and their plot\
+# 1. \
+ones_dur <- 15 \
+ones_onsets <- seq(0,N-20, by = 30)\
+stimA<-getstim(ones_onsets, ones_dur, N)\
+ones_dur <- 20 \
+ones_onsets <- seq(20,N-20, by = 45)\
+stimB<-getstim(ones_onsets, ones_dur, N)\
+ones_dur <- 25 \
+ones_onsets <- seq(0,N-20, by = 60)\
+stimC<-getstim(ones_onsets, ones_dur, N)\
+TC <- matrix(c(stimA,stimB,stimC),ncol=3)\
+\
+# 2. Visually you can see that the boxcar of all three TCS do not overlap much and they look independent to each other \
+\
+# 3. \
+for (i in 1:3)\
+\{\
+  TC[,i]<-(TC[,i]-mean(TC[,i]))/sd(TC[,i]);#can also use scale command here\
+\}\
+\
+# 4. \
+par(mfrow=c(1,3))\
+for (i in 1:3)\
+\{\
+  plot(TC[,(i)],type = "l",border=NA,xlab="", ylab="", main = "") \
+\}\
+\
+\
+#Question 2: \
+####################################Source SMs and their plot\
+tmpSM<- array(0, dim=c(x1,x2,nsrcs));\
+SM<- matrix(0,nsrcs,x1*x2);\
+\
+# 1.\
+tmpSM[14:18,14:18,1] <- 1\
+tmpSM[03:07,03:07,2] <- 1\
+tmpSM[08:13,08:13,3] <- 1\
+\
+# 2. all three SMs are completely independent to each other\
+\
+# 3. as there are same values in all three cases standardization is not required. Lets suppose if one of the slices had pixel values =10 then it becomes necessary. \
+\
+#4\
+par(mfrow=c(1,3))\
+for (i in 1:3)\
+\{\
+  plot(tmpSM[,,i],border=NA,xlab="", ylab="", main = "") \
+\}\
+\
+#5\
+for (i in 1:3)\
+\{\
+  SM[i,] <- c(tmpSM[,,i])\
+\}\
+\
+#Question 3: \
+####################################Noise and Data matrix generation and its plots\
+# 1.\
+tnoise <- matrix(0,N,nsrcs);\
+snoise <- matrix(0,nsrcs,x1*x2);\
+for(i in 1:nsrcs)\
+\{\
+  tnoise[,i] <- rnorm(N,0,sqrt(var_arr[1]));\
+  snoise[i,] <- rnorm(x1*x2,0,sqrt(var_arr[2]));\
+\}\
+\
+# 2.\
+X <- (TC+tnoise)%*%(SM+snoise); \
+\
+\pard\pardeftab720\ri0\sl259\slmult1\sa160\partightenfactor0
+\cf0 # 3. All terms exist but we can either assume second and third term to be zero to simplify the model or can incorporate them into structured noise term (Tt*Ts) leaving us only with two terms (TC*SM) and (Tt*Ts)\'a0 \uc0\u8232 X=(TC+Tt)*(SM*Ts)\'a0 = (TC*SM)+(TC*Ts)+(Tt*SM)+(Tt*Ts)\'a0\
+The first term is a linear combination of sources. \'a0\
+Last term is two uncorrelated noise sources becoming structured noise after they get multiplied, because although Tt and Ts are uncorrelated, their product (Tt*Ts) produces a structured noise \uc0\u8232 Second term and third terms will either produce structured noise or straight zeros on pixels with no values. In all scenarios we incorporate it into last term E = (TC*Ts)+(Tt*SM)+(Tt*Ts)\'a0 to simplify the model\
+\pard\pardeftab720\ri0\partightenfactor0
+\cf0 tnoise <- matrix(0,N,nsrcs);\
+snoise <- matrix(0,nsrcs,x1*x2);\
+for(i in 1:nsrcs)\
+\{\
+  tnoise[,i] <- rnorm(N,0,sqrt(var_arr[1]));\
+  snoise[i,] <- rnorm(x1*x2,0,sqrt(var_arr[2]));\
+\}\
+\
+TT1 = cor(tnoise)\
+TT2 = cor(tnoise%*%snoise)\
+TT3 = cor(TC%*%snoise)\
+TT4 = cor(tnoise%*%SM)\
+\
+TT1[1:3,1:3]\
+TT2[1:5,1:5]\
+TT3[1:5,1:5]\
+TT4[1:5,1:5]
+\f2 \
+\
+
+\f1 # 4.\
+data <- data.frame(n = 1:240, X[,sample.int(240, 100)])\
+data_ggp <- melt(data, id.vars = "n")\
+ggplot(data_ggp, aes(x=n, y=value, col = variable)) + geom_line()   \
+\
+\
+#Question 4: \
+####################################Solving Linear Regression model using OLS and their plots\
+# 1.\
+A <- abs(pinv(TC) %*% X)  ## can also use A <- abs(inv(t(TC)%*%TC)%*%t(TC)%*%X)\
+\
+# 2.\
+A[A<max(A)/T]<-0\
+\
+# 3. \
+D<-X%*%t(A)\
+\
+# 4. \
+par(mfrow=c(3,2))\
+for (i in 1:6)\
+\{\
+  if (mod(i,2)==1)\
+  \{ \
+    Ar= matrix(A[((i-1)/2)+1,],21,21)\
+    if (i==1)\
+    \{\
+      plot(Ar,border=NA,xlab="", ylab="", main = "Retrieved Spatial Maps",col.main="blue") \
+    \}\
+    else\
+    \{\
+      plot(Ar,border=NA,xlab="", ylab="", main = "") \
+    \}\
+  \}\
+  else\
+  \{\
+    if (i==2)\
+    \{\
+      plot(D[,(i/2)],type = "l",border=NA,xlab="", ylab="", main = "Retrieved Time courses",col.main="blue") \
+    \}\
+    else\
+    \{\
+      plot(D[,(i/2)],type = "l",border=NA,xlab="", ylab="", main = "") \
+    \}\
+  \}\
+\}                            \
+\
+#Question 5: \
+####################################Spatial Dependence \
+# 1. \
+T<-3; #3 #4\
+SM2 <- matrix(0,nsrcs,x1*x2);\
+tmpSM[12:18,12:18,1] <- 1; SM2[1,] <- c(tmpSM[,,1]);\
+tmpSM[03:17,03:17,2] <- 1; SM2[2,] <- c(tmpSM[,,2]);\
+tmpSM[08:14,08:14,3] <- 1; SM2[3,] <- c(tmpSM[,,3]);\
+X <- (TC+tnoise)%*%(SM2+snoise); \
+A <- abs(pinv(TC) %*% X)  ## can also use A <- abs(inv(t(TC)%*%TC)%*%t(TC)%*%X)\
+A[A<max(A)/T]<-0\
+D<-X%*%t(A)\
+par(mfrow=c(3,2))\
+for (i in 1:6)\
+\{\
+  if (mod(i,2)==1)\
+  \{ \
+    Ar= matrix(A[((i-1)/2)+1,],21,21)\
+    if (i==1)\
+    \{\
+      plot(Ar,border=NA,xlab="", ylab="", main = "Retrieved Spatial Maps",col.main="blue") \
+    \}\
+    else\
+    \{\
+      plot(Ar,border=NA,xlab="", ylab="", main = "") \
+    \}\
+  \}\
+  else\
+  \{\
+    if (i==2)\
+    \{\
+      plot(D[,(i/2)],type = "l",border=NA,xlab="", ylab="", main = "Retrieved Time courses",col.main="blue") \
+    \}\
+    else\
+    \{\
+      plot(D[,(i/2)],type = "l",border=NA,xlab="", ylab="", main = "") \
+    \}\
+  \}\
+\}                            \
+\
+# 2. Yes, the estimates of retrieved TCs (D) have become worse. This is due to false positives. One way to solve this is to raise the threshold T, but that might produce many false negatives\
+\
+# 3. By standardizing the dataset, least square is unable to differentiate between noisy pixels and pixels with source TCs. It fails very badly giving many false positives if you lower the threshold and giving many false negatives if you raise the threshold.\
+T<-3; #2 #3 #4\
+Xs<-X\
+for (i in 1:(x1*x2))\
+\{\
+  Xs[,i]<-scale(X[,i]);\
+\}\
+A <- abs(pinv(TC) %*% Xs)  ## can also use A <- abs(inv(t(TC)%*%TC)%*%t(TC)%*%X)\
+A[A<max(A)/T]<-0\
+D<-Xs%*%t(A)\
+par(mfrow=c(3,2))\
+for (i in 1:6)\
+\{\
+  if (mod(i,2)==1)\
+  \{ \
+    Ar= matrix(A[((i-1)/2)+1,],21,21)\
+    if (i==1)\
+    \{\
+      plot(Ar,border=NA,xlab="", ylab="", main = "Retrieved Spatial Maps",col.main="blue") \
+    \}\
+    else\
+    \{\
+      plot(Ar,border=NA,xlab="", ylab="", main = "") \
+    \}\
+  \}\
+  else\
+  \{\
+    if (i==2)\
+    \{\
+      plot(D[,(i/2)],type = "l",border=NA,xlab="", ylab="", main = "Retrieved Time courses",col.main="blue") \
+    \}\
+    else\
+    \{\
+      plot(D[,(i/2)],type = "l",border=NA,xlab="", ylab="", main = "") \
+    \}\
+  \}\
+\}                            \
+\
+# 4. Sparse solution will help you get rid of these false positives and you will be able to retrieve noise free TCs
+\f2 \
+\
+\
+}
